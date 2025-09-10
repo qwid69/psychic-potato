@@ -1,0 +1,33 @@
+{
+  "name": "GameParticipant",
+  "type": "object",
+  "properties": {
+    "game_id": {
+      "type": "string",
+      "description": "ID of the game"
+    },
+    "player_id": {
+      "type": "string",
+      "description": "ID of the player"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "confirmed",
+        "pending",
+        "declined"
+      ],
+      "default": "confirmed",
+      "description": "Participation status"
+    },
+    "joined_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the player joined"
+    }
+  },
+  "required": [
+    "game_id",
+    "player_id"
+  ]
+}
