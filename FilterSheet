@@ -1,0 +1,139 @@
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { X } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
+export default function FilterSheet({ isOpen, onClose, filters, onFiltersChange }) {
+  const handleFilterChange = (field, value) => {
+    onFiltersChange(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    onFiltersChange({
+      skill_level: "all",
+      date: "all", 
+      location: "",
+      status: "open"
+    });
+  };
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="bottom" className="rounded-t-2xl border-none max-w-md mx-auto">
+        <SheetHeader className="text-left pb-6">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-xl font-bold">Filter Games</SheetTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="hover:bg-gray-100"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+          <SheetDescription>
+            Find games that match your preferences
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-6 pb-6">
+          {/* Skill Level */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Skill Level</label>
+            <Select 
+              value={filters.skill_level} 
+              onValueChange={(value) => handleFilterChange('skill_level', value)}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Levels</SelectItem>
+                <SelectItem value="beginner">Beginner</SelectItem>
+                <SelectItem value="intermediate">Intermediate</SelectItem>
+                <SelectItem value="advanced">Advanced</SelectItem>
+                <SelectItem value="professional">Professional</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Date Range */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">When</label>
+            <Select 
+              value={filters.date} 
+              onValueChange={(value) => handleFilterChange('date', value)}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any Time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="tomorrow">Tomorrow</SelectItem>
+                <SelectItem value="this_week">This Week</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Location */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Location</label>
+            <Input
+              placeholder="Search by location..."
+              value={filters.location}
+              onChange={(e) => handleFilterChange('location', e.target.value)}
+              className="rounded-xl border-gray-200"
+            />
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Availability</label>
+            <Select 
+              value={filters.status} 
+              onValueChange={(value) => handleFilterChange('status', value)}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Games</SelectItem>
+                <SelectItem value="open">Open Games</SelectItem>
+                <SelectItem value="full">Full Games</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex space-x-3 pt-6 border-t">
+          <Button 
+            variant="outline" 
+            onClick={clearFilters}
+            className="flex-1 rounded-xl"
+          >
+            Clear All
+          </Button>
+          <Button 
+            onClick={onClose}
+            className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl"
+          >
+            Apply Filters
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

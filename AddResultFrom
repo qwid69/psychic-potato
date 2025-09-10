@@ -1,0 +1,84 @@
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Save } from 'lucide-react';
+
+export default function AddResultForm({ players, onSave }) {
+  const [team1, setTeam1] = useState({ p1: '', p2: '' });
+  const [team2, setTeam2] = useState({ p1: '', p2: '' });
+  const [scores, setScores] = useState({ team1: '', team2: '' });
+  const [saving, setSaving] = useState(false);
+
+  const getAvailablePlayers = (team, playerKey) => {
+    const selectedIds = [
+      team1.p1, team1.p2,
+      team2.p1, team2.p2
+    ].filter(Boolean);
+    const currentId = team === 'team1' ? team1[playerKey] : team2[playerKey];
+    return players.filter(p => !selectedIds.includes(p.id) || p.id === currentId);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave({
+      team1_player1: team1.p1,
+      team1_player2: team1.p2,
+      team2_player1: team2.p1,
+      team2_player2: team2.p2,
+      team1_score: parseInt(scores.team1),
+      team2_score: parseInt(scores.team2)
+    });
+    setSaving(false);
+  };
+  
+  const isFormValid = () => team1.p1 && team1.p2 && team2.p1 && team2.p2 && scores.team1 && scores.team2;
+
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 space-y-6">
+      <div>
+        <h4 className="font-bold text-lg text-gray-800 mb-3">Team 1</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <Select onValueChange={(val) => setTeam1(t => ({...t, p1: val}))}>
+            <SelectTrigger><SelectValue placeholder="Player 1" /></SelectTrigger>
+            <SelectContent>{getAvailablePlayers('team1', 'p1').map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select onValueChange={(val) => setTeam1(t => ({...t, p2: val}))}>
+            <SelectTrigger><SelectValue placeholder="Player 2" /></SelectTrigger>
+            <SelectContent>{getAvailablePlayers('team1', 'p2').map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="font-bold text-lg text-gray-800 mb-3">Team 2</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <Select onValueChange={(val) => setTeam2(t => ({...t, p1: val}))}>
+            <SelectTrigger><SelectValue placeholder="Player 1" /></SelectTrigger>
+            <SelectContent>{getAvailablePlayers('team2', 'p1').map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select onValueChange={(val) => setTeam2(t => ({...t, p2: val}))}>
+            <SelectTrigger><SelectValue placeholder="Player 2" /></SelectTrigger>
+            <SelectContent>{getAvailablePlayers('team2', 'p2').map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+      
+      <div>
+        <h4 className="font-bold text-lg text-gray-800 mb-3">Final Score</h4>
+        <div className="flex items-center justify-center space-x-4">
+          <Input type="number" placeholder="Team 1" className="text-center" value={scores.team1} onChange={e => setScores(s => ({...s, team1: e.target.value}))}/>
+          <span className="font-bold text-gray-400 text-xl">-</span>
+          <Input type="number" placeholder="Team 2" className="text-center" value={scores.team2} onChange={e => setScores(s => ({...s, team2: e.target.value}))}/>
+        </div>
+      </div>
+
+      <div className="pt-4">
+        <Button onClick={handleSave} disabled={!isFormValid() || saving} className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-4 rounded-xl font-semibold text-lg shadow-lg">
+          <Save className="w-5 h-5 mr-2" />
+          {saving ? 'Saving...' : 'Save Result'}
+        </Button>
+      </div>
+    </div>
+  );
+}
