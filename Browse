@@ -1,0 +1,256 @@
+
+import React, { useState, useEffect, useCallback } from "react";
+import { Game, GameParticipant, User } from "@/entities/all";
+import { Search, Filter, MapPin } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import GameCard from "../components/browse/GameCard";
+import FilterSheet from "../components/browse/FilterSheet";
+
+export default function Browse() {
+  const [games, setGames] = useState([]);
+  const [filteredGames, setFilteredGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    skill_level: "all",
+    date: "all",
+    location: "",
+    status: "open"
+  });
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    loadGames();
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const currentUser = await User.me();
+      setUser(currentUser);
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
+
+  const loadGames = async () => {
+    try {
+      const allGames = await Game.list("-created_date");
+      const upcomingGames = allGames.filter(game =>
+        new Date(`${game.date}T${game.time}`) > new Date()
+      );
+      setGames(upcomingGames);
+    } catch (error) {
+      console.error("Error loading games:", error);
+    }
+    setLoading(false);
+  };
+
+  const applyFilters = useCallback(() => {
+    let filtered = [...games];
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(game =>
+        game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        game.location.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Skill level filter
+    if (filters.skill_level !== "all") {
+      filtered = filtered.filter(game => game.skill_level === filters.skill_level);
+    }
+
+    // Status filter
+    if (filters.status !== "all") {
+      filtered = filtered.filter(game => game.status === filters.status);
+    }
+
+    // Location filter
+    if (filters.location) {
+      filtered = filtered.filter(game =>
+        game.location.toLowerCase().includes(filters.location.toLowerCase())
+      );
+    }
+
+    // Date filter
+    if (filters.date !== "all") {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const thisWeek = new Date(today);
+      thisWeek.setDate(thisWeek.getDate() + 7);
+
+      filtered = filtered.filter(game => {
+        const gameDate = new Date(game.date);
+        switch (filters.date) {
+          case "today":
+            return gameDate.toDateString() === today.toDateString();
+          case "tomorrow":
+            return gameDate.toDateString() === tomorrow.toDateString();
+          case "this_week":
+            return gameDate <= thisWeek;
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredGames(filtered);
+  }, [games, searchQuery, filters]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  const handleJoinGame = async (gameId) => {
+    if (!user) return;
+
+    try {
+      await GameParticipant.create({
+        game_id: gameId,
+        player_id: user.id,
+        status: "confirmed",
+        joined_at: new Date().toISOString()
+      });
+
+      // Update game's current_players count
+      const game = games.find(g => g.id === gameId);
+      if (game) {
+        await Game.update(gameId, {
+          current_players: game.current_players + 1,
+          status: game.current_players + 1 >= game.max_players ? "full" : "open"
+        });
+        loadGames(); // Reload to show updated data
+      }
+    } catch (error) {
+      console.error("Error joining game:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-12 bg-gray-200 rounded-xl"></div>
+          <div className="h-10 bg-gray-200 rounded-lg"></div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Find Games</h1>
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <MapPin className="w-4 h-4" />
+            <span>{user?.location || "All locations"}</span>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Input
+            placeholder="Search games or locations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-12 py-3 rounded-xl border-gray-200 focus:border-blue-500"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowFilters(true)}
+            className="absolute right-1 top-1/2 transform -translate-y-1/2 hover:bg-gray-100"
+          >
+            <Filter className="w-5 h-5 text-gray-500" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Active Filters */}
+      {(filters.skill_level !== "all" || filters.date !== "all" || filters.location) && (
+        <div className="flex flex-wrap gap-2">
+          {filters.skill_level !== "all" && (
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+              {filters.skill_level}
+            </span>
+          )}
+          {filters.date !== "all" && (
+            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+              {filters.date.replace("_", " ")}
+            </span>
+          )}
+          {filters.location && (
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+              {filters.location}
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilters({ skill_level: "all", date: "all", location: "", status: "open" })}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            Clear all
+          </Button>
+        </div>
+      )}
+
+      {/* Games List */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">
+            {filteredGames.length} games available
+          </h3>
+        </div>
+
+        {filteredGames.length > 0 ? (
+          <div className="space-y-4">
+            {filteredGames.map((game) => (
+              <GameCard
+                key={game.id}
+                game={game}
+                onJoin={handleJoinGame}
+                currentUser={user}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No games found</h3>
+            <p className="text-gray-500 mb-6">Try adjusting your filters or search terms</p>
+            <Button
+              onClick={() => setFilters({ skill_level: "all", date: "all", location: "", status: "open" })}
+              className="bg-gradient-to-r from-green-500 to-blue-500 text-white"
+            >
+              Clear filters
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Filter Sheet */}
+      <FilterSheet
+        isOpen={showFilters}
+        onClose={() => setShowFilters(false)}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
+    </div>
+  );
+}
