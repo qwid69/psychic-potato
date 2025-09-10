@@ -1,0 +1,52 @@
+{
+  "name": "GameResult",
+  "type": "object",
+  "properties": {
+    "game_id": {
+      "type": "string",
+      "description": "ID of the game"
+    },
+    "team1_player1": {
+      "type": "string",
+      "description": "Player 1 of team 1"
+    },
+    "team1_player2": {
+      "type": "string",
+      "description": "Player 2 of team 1"
+    },
+    "team2_player1": {
+      "type": "string",
+      "description": "Player 1 of team 2"
+    },
+    "team2_player2": {
+      "type": "string",
+      "description": "Player 2 of team 2"
+    },
+    "team1_score": {
+      "type": "number",
+      "description": "Team 1 final score"
+    },
+    "team2_score": {
+      "type": "number",
+      "description": "Team 2 final score"
+    },
+    "sets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "team1_games": {
+            "type": "number"
+          },
+          "team2_games": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Set by set scores"
+    }
+  },
+  "required": [
+    "game_id"
+  ]
+}
