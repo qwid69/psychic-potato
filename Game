@@ -1,0 +1,74 @@
+{
+  "name": "Game",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Game title/name"
+    },
+    "location": {
+      "type": "string",
+      "description": "Game location/court"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Game date"
+    },
+    "time": {
+      "type": "string",
+      "description": "Game time"
+    },
+    "skill_level": {
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced",
+        "professional"
+      ],
+      "description": "Required skill level"
+    },
+    "max_players": {
+      "type": "number",
+      "default": 4,
+      "description": "Maximum number of players"
+    },
+    "current_players": {
+      "type": "number",
+      "default": 1,
+      "description": "Current number of players"
+    },
+    "description": {
+      "type": "string",
+      "description": "Game description/notes"
+    },
+    "court_cost": {
+      "type": "number",
+      "description": "Cost per player"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "full",
+        "cancelled",
+        "completed"
+      ],
+      "default": "open",
+      "description": "Game status"
+    },
+    "organizer_id": {
+      "type": "string",
+      "description": "User ID of the game organizer"
+    }
+  },
+  "required": [
+    "title",
+    "location",
+    "date",
+    "time",
+    "skill_level",
+    "organizer_id"
+  ]
+}
