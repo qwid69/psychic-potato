@@ -1,0 +1,32 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { Crown } from 'lucide-react';
+
+export default function PlayerAvatarList({ players, organizer }) {
+  return (
+    <div className="space-y-3">
+      {players.map(player => (
+        <Link 
+          to={createPageUrl(`PlayerProfile?id=${player.id}`)}
+          key={player.id}
+          className="flex items-center space-x-4 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+            {player.full_name?.[0]?.toUpperCase() || 'P'}
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-gray-800">{player.full_name}</p>
+            <p className="text-sm text-gray-500 capitalize">{player.skill_level}</p>
+          </div>
+          {organizer?.id === player.id && (
+            <div className="flex items-center space-x-1 text-xs text-yellow-600 font-medium">
+              <Crown className="w-4 h-4" />
+              <span>Organizer</span>
+            </div>
+          )}
+        </Link>
+      ))}
+    </div>
+  );
+}
