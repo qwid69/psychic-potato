@@ -1,0 +1,205 @@
+import React, { useState, useEffect } from "react";
+import { Game, GameParticipant, User } from "@/entities/all";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { MapPin, Clock, Users, Plus, Calendar, TrendingUp } from "lucide-react";
+import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import QuickGameCard from "../components/dashboard/QuickGameCard";
+import StatsCard from "../components/dashboard/StatsCard";
+
+export default function Dashboard() {
+  const [user, setUser] = useState(null);
+  const [nearbyGames, setNearbyGames] = useState([]);
+  const [myGames, setMyGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ totalGames: 0, upcomingGames: 0, winRate: 0 });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      const currentUser = await User.me();
+      setUser(currentUser);
+
+      const allGames = await Game.list("-created_date");
+      const myParticipations = await GameParticipant.filter({ player_id: currentUser.id });
+      const myGameIds = myParticipations.map(p => p.game_id);
+      
+      // Filter games
+      const upcoming = allGames.filter(game => 
+        new Date(`${game.date}T${game.time}`) > new Date() && 
+        game.status === 'open'
+      );
+      
+      const myUpcoming = upcoming.filter(game => myGameIds.includes(game.id));
+      const nearby = upcoming.filter(game => 
+        !myGameIds.includes(game.id) && 
+        game.current_players < game.max_players &&
+        (!currentUser.location || game.location.toLowerCase().includes(currentUser.location.toLowerCase()))
+      ).slice(0, 5);
+
+      setNearbyGames(nearby);
+      setMyGames(myUpcoming.slice(0, 3));
+      setStats({
+        totalGames: myParticipations.length,
+        upcomingGames: myUpcoming.length,
+        winRate: 75 // Placeholder
+      });
+    } catch (error) {
+      console.error("Error loading dashboard:", error);
+    }
+    setLoading(false);
+  };
+
+  const getTimeDisplay = (date, time) => {
+    const gameDate = parseISO(date);
+    if (isToday(gameDate)) return `Today at ${time}`;
+    if (isTomorrow(gameDate)) return `Tomorrow at ${time}`;
+    return `${format(gameDate, 'MMM d')} at ${time}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-32 bg-gray-200 rounded-2xl"></div>
+          <div className="grid grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-20 bg-gray-200 rounded-xl"></div>
+            ))}
+          </div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl p-6 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold opacity-90">Welcome back</h2>
+              <h1 className="text-2xl font-bold">{user?.full_name || 'Player'}!</h1>
+            </div>
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <Users className="w-6 h-6" />
+            </div>
+          </div>
+          <p className="text-white/80 text-sm">
+            {nearbyGames.length} games available near you
+          </p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatsCard
+          icon={Calendar}
+          value={stats.totalGames}
+          label="Games Played"
+          color="from-blue-500 to-blue-600"
+        />
+        <StatsCard
+          icon={Clock}
+          value={stats.upcomingGames}
+          label="Upcoming"
+          color="from-green-500 to-green-600"
+        />
+        <StatsCard
+          icon={TrendingUp}
+          value={`${stats.winRate}%`}
+          label="Win Rate"
+          color="from-purple-500 to-purple-600"
+        />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex gap-3">
+        <Link 
+          to={createPageUrl("CreateGame")}
+          className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl p-4 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+        >
+          <Plus className="w-5 h-5" />
+          <span className="font-semibold">Create Game</span>
+        </Link>
+        <Link 
+          to={createPageUrl("Browse")}
+          className="flex-1 bg-white text-gray-700 rounded-xl p-4 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border border-gray-200"
+        >
+          <MapPin className="w-5 h-5 text-blue-500" />
+          <span className="font-semibold">Find Games</span>
+        </Link>
+      </div>
+
+      {/* My Upcoming Games */}
+      {myGames.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900">My Games</h3>
+            <Link to={createPageUrl("Browse")} className="text-blue-500 text-sm font-medium">
+              View all
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {myGames.map((game) => (
+              <QuickGameCard
+                key={game.id}
+                game={game}
+                timeDisplay={getTimeDisplay(game.date, game.time)}
+                isMyGame={true}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Nearby Games */}
+      {nearbyGames.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900">Games Near You</h3>
+            <Link to={createPageUrl("Browse")} className="text-blue-500 text-sm font-medium">
+              View all
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {nearbyGames.map((game) => (
+              <QuickGameCard
+                key={game.id}
+                game={game}
+                timeDisplay={getTimeDisplay(game.date, game.time)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {nearbyGames.length === 0 && myGames.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Calendar className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No games yet</h3>
+          <p className="text-gray-500 mb-6">Create your first game or browse available ones</p>
+          <Link 
+            to={createPageUrl("CreateGame")}
+            className="inline-flex items-center space-x-2 bg-gradient-to-r from-green-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Create Game</span>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}

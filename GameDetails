@@ -1,0 +1,189 @@
+
+import React, { useState, useEffect, useCallback } from "react";
+import { Game, GameParticipant, User, GameResult } from "@/entities/all";
+import { useLocation, Link, useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { ArrowLeft, MapPin, Clock, Users, Star, DollarSign, Edit, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { format, parseISO } from "date-fns";
+import PlayerAvatarList from "../components/game/PlayerAvatarList";
+
+export default function GameDetails() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const gameId = new URLSearchParams(location.search).get('id');
+  
+  const [game, setGame] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [organizer, setOrganizer] = useState(null);
+  const [result, setResult] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadGameDetails = useCallback(async () => {
+    if (!gameId) return;
+    setLoading(true);
+    try {
+      const gameData = await Game.get(gameId);
+      setGame(gameData);
+
+      const participantData = await GameParticipant.filter({ game_id: gameId });
+      const playerIds = participantData.map(p => p.player_id);
+
+      let allUsers = [];
+      if (playerIds.length > 0) {
+        // Also fetch organizer if not in participants list
+        const allIds = [...new Set([...playerIds, gameData.organizer_id])];
+        allUsers = await User.filter({ id: { $in: allIds } });
+      } else if (gameData.organizer_id) {
+        allUsers = [await User.get(gameData.organizer_id)];
+      }
+      
+      const userMap = allUsers.reduce((acc, user) => ({ ...acc, [user.id]: user }), {});
+      setParticipants(participantData.map(p => userMap[p.player_id]).filter(Boolean));
+      setOrganizer(userMap[gameData.organizer_id]);
+      
+      const me = await User.me();
+      setCurrentUser(me);
+
+      if (gameData.status === 'completed') {
+        const gameResult = await GameResult.filter({ game_id: gameId });
+        if (gameResult.length > 0) setResult(gameResult[0]);
+      }
+    } catch (error) {
+      console.error("Error loading game details:", error);
+    }
+    setLoading(false);
+  }, [gameId]);
+
+  useEffect(() => {
+    loadGameDetails();
+  }, [loadGameDetails]);
+
+  const handleJoinGame = async () => {
+    if (!currentUser || !game) return;
+    try {
+      await GameParticipant.create({
+        game_id: game.id,
+        player_id: currentUser.id,
+        status: "confirmed",
+        joined_at: new Date().toISOString()
+      });
+      await Game.update(game.id, {
+        current_players: game.current_players + 1,
+        status: game.current_players + 1 >= game.max_players ? "full" : "open"
+      });
+      loadGameDetails();
+    } catch (error) {
+      console.error("Error joining game:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-6 animate-pulse">
+        <div className="h-8 w-24 bg-gray-200 rounded-lg mb-6"></div>
+        <div className="space-y-4">
+          <div className="h-6 w-3/4 bg-gray-200 rounded"></div>
+          <div className="h-24 bg-gray-200 rounded-xl"></div>
+          <div className="h-32 bg-gray-200 rounded-xl"></div>
+          <div className="h-12 bg-gray-200 rounded-xl"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!game) {
+    return <div className="text-center py-10">Game not found.</div>;
+  }
+
+  const isParticipant = currentUser && participants.some(p => p.id === currentUser.id);
+  const canJoin = !isParticipant && game.status === 'open' && game.current_players < game.max_players;
+  const gameDate = parseISO(game.date);
+
+  const skillColors = {
+    beginner: "from-green-400 to-green-500",
+    intermediate: "from-blue-400 to-blue-500", 
+    advanced: "from-purple-400 to-purple-500",
+    professional: "from-red-400 to-red-500"
+  };
+
+  return (
+    <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-center space-x-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-gray-100">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <h1 className="text-2xl font-bold text-gray-900 truncate">{game.title}</h1>
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 space-y-5">
+        <div className="flex justify-between items-center">
+          <div className={`inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r ${skillColors[game.skill_level]} text-white shadow-md`}>
+            <Star className="w-4 h-4 mr-2" />
+            <span className="font-semibold capitalize">{game.skill_level}</span>
+          </div>
+          <Badge variant={game.status === 'open' ? 'default' : 'secondary'} className={game.status === 'open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+            {game.status}
+          </Badge>
+        </div>
+
+        <div className="space-y-3 text-gray-700">
+          <div className="flex items-start space-x-3">
+            <MapPin className="w-5 h-5 mt-0.5 text-blue-500" />
+            <span className="font-medium">{game.location}</span>
+          </div>
+          <div className="flex items-start space-x-3">
+            <Clock className="w-5 h-5 mt-0.5 text-green-500" />
+            <span className="font-medium">{format(gameDate, 'EEEE, MMMM d')} at {game.time}</span>
+          </div>
+          {game.court_cost > 0 && (
+            <div className="flex items-start space-x-3">
+              <DollarSign className="w-5 h-5 mt-0.5 text-orange-500" />
+              <span className="font-medium">${game.court_cost} per player</span>
+            </div>
+          )}
+        </div>
+
+        {game.description && <p className="text-gray-600 bg-gray-50 p-3 rounded-lg">{game.description}</p>}
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+          <Users className="w-5 h-5 mr-3 text-purple-500"/>
+          Players ({game.current_players}/{game.max_players})
+        </h3>
+        <PlayerAvatarList players={participants} organizer={organizer} />
+      </div>
+
+      {result && (
+        <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <Trophy className="w-5 h-5 mr-3 text-yellow-500"/>
+            Final Score
+          </h3>
+          <div className="text-center">
+            <p className="text-gray-600">Team 1 vs Team 2</p>
+            <p className="text-3xl font-bold text-gray-900">{result.team1_score} - {result.team2_score}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="pt-4">
+        {canJoin && (
+          <Button onClick={handleJoinGame} className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all">
+            Join Game
+          </Button>
+        )}
+        {isParticipant && game.status === 'full' && !result && (
+           <Link to={createPageUrl(`AddResult?game_id=${gameId}`)} className="w-full">
+            <Button className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all">
+              <Edit className="w-5 h-5 mr-2" /> Add Result
+            </Button>
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}

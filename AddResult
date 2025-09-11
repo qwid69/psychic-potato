@@ -1,0 +1,71 @@
+
+import React, { useState, useEffect, useCallback } from "react";
+import { Game, GameParticipant, User, GameResult } from "@/entities/all";
+import { useLocation, useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { ArrowLeft, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import AddResultForm from "../components/game/AddResultForm";
+
+export default function AddResult() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const gameId = new URLSearchParams(location.search).get('game_id');
+  const [game, setGame] = useState(null);
+  const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadGameData = useCallback(async () => {
+    if (!gameId) return;
+    setLoading(true);
+    try {
+      const gameData = await Game.get(gameId);
+      setGame(gameData);
+
+      const participants = await GameParticipant.filter({ game_id: gameId });
+      const playerIds = participants.map(p => p.player_id);
+      const playersData = await User.filter({ id: { $in: playerIds } });
+      setPlayers(playersData);
+    } catch (error) {
+      console.error("Error loading data for result:", error);
+    }
+    setLoading(false);
+  }, [gameId]);
+
+  useEffect(() => {
+    loadGameData();
+  }, [loadGameData]);
+
+  const handleSaveResult = async (resultData) => {
+    try {
+      await GameResult.create({
+        game_id: gameId,
+        ...resultData
+      });
+      await Game.update(gameId, { status: 'completed' });
+      navigate(createPageUrl(`GameDetails?id=${gameId}`));
+    } catch (error) {
+      console.error("Error saving result:", error);
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (!game) return <div>Game not found</div>;
+
+  return (
+    <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-center space-x-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-gray-100">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+            <Trophy className="w-6 h-6 mr-3 text-yellow-500"/>
+            Add Game Result
+        </h1>
+      </div>
+      <p className="text-gray-600">Enter the teams and final score for <span className="font-semibold">{game.title}</span>.</p>
+      
+      <AddResultForm players={players} onSave={handleSaveResult} />
+    </div>
+  );
+}

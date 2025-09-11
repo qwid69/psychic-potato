@@ -1,0 +1,245 @@
+import React, { useState, useEffect } from "react";
+import { User } from "@/entities/all";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Camera, MapPin, Star, Settings, LogOut, Check } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+
+export default function Profile() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [profileData, setProfileData] = useState({
+    full_name: "",
+    location: "",
+    skill_level: "",
+    bio: "",
+    phone: "",
+    preferred_times: []
+  });
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const currentUser = await User.me();
+      setUser(currentUser);
+      setProfileData({
+        full_name: currentUser.full_name || "",
+        location: currentUser.location || "",
+        skill_level: currentUser.skill_level || "beginner",
+        bio: currentUser.bio || "",
+        phone: currentUser.phone || "",
+        preferred_times: currentUser.preferred_times || []
+      });
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+    setLoading(false);
+  };
+
+  const handleInputChange = (field, value) => {
+    setProfileData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setSaved(false);
+  };
+
+  const handlePreferredTimeChange = (time, checked) => {
+    setProfileData(prev => ({
+      ...prev,
+      preferred_times: checked 
+        ? [...prev.preferred_times, time]
+        : prev.preferred_times.filter(t => t !== time)
+    }));
+    setSaved(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await User.updateMyUserData(profileData);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
+    setSaving(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await User.logout();
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
+
+  const skillLevelColors = {
+    beginner: "from-green-400 to-green-500",
+    intermediate: "from-blue-400 to-blue-500", 
+    advanced: "from-purple-400 to-purple-500",
+    professional: "from-red-400 to-red-500"
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-6">
+        <div className="animate-pulse space-y-6">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-24 h-24 bg-gray-200 rounded-full"></div>
+            <div className="h-6 w-32 bg-gray-200 rounded"></div>
+            <div className="h-8 w-24 bg-gray-200 rounded-full"></div>
+          </div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+      {/* Profile Header */}
+      <div className="text-center space-y-4">
+        <div className="relative inline-block">
+          <div className="w-24 h-24 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+            {user?.full_name?.[0]?.toUpperCase() || "U"}
+          </div>
+          <Button
+            size="icon"
+            className="absolute -bottom-2 -right-2 w-8 h-8 bg-white text-gray-600 border-2 border-white rounded-full shadow-lg hover:bg-gray-50"
+          >
+            <Camera className="w-4 h-4" />
+          </Button>
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{user?.full_name}</h1>
+          <p className="text-gray-500 text-sm">{user?.email}</p>
+        </div>
+        <div className={`inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r ${skillLevelColors[profileData.skill_level]} text-white shadow-lg`}>
+          <Star className="w-4 h-4 mr-2" />
+          <span className="font-semibold capitalize">{profileData.skill_level}</span>
+        </div>
+      </div>
+
+      {/* Profile Form */}
+      <div className="space-y-6">
+        {/* Basic Info */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Full Name</label>
+            <Input
+              value={profileData.full_name}
+              onChange={(e) => handleInputChange('full_name', e.target.value)}
+              className="rounded-xl border-gray-200 focus:border-blue-500"
+              placeholder="Your full name"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center space-x-2">
+              <MapPin className="w-4 h-4 text-blue-500" />
+              <span>Location</span>
+            </label>
+            <Input
+              value={profileData.location}
+              onChange={(e) => handleInputChange('location', e.target.value)}
+              className="rounded-xl border-gray-200 focus:border-blue-500"
+              placeholder="Your city or area"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Phone Number</label>
+            <Input
+              value={profileData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              className="rounded-xl border-gray-200 focus:border-blue-500"
+              placeholder="Your phone number"
+            />
+          </div>
+        </div>
+
+        {/* Skill Level */}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700">Skill Level</label>
+          <Select value={profileData.skill_level} onValueChange={(value) => handleInputChange('skill_level', value)}>
+            <SelectTrigger className="rounded-xl border-gray-200">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="beginner">Beginner - New to padel</SelectItem>
+              <SelectItem value="intermediate">Intermediate - Regular player</SelectItem>
+              <SelectItem value="advanced">Advanced - Competitive level</SelectItem>
+              <SelectItem value="professional">Professional - Tournament player</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Preferred Times */}
+        <div className="space-y-3">
+          <label className="text-sm font-semibold text-gray-700">Preferred Playing Times</label>
+          <div className="grid grid-cols-2 gap-3">
+            {["morning", "afternoon", "evening", "night"].map((time) => (
+              <div key={time} className="flex items-center space-x-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50">
+                <Checkbox
+                  id={time}
+                  checked={profileData.preferred_times.includes(time)}
+                  onCheckedChange={(checked) => handlePreferredTimeChange(time, checked)}
+                />
+                <label htmlFor={time} className="text-sm font-medium capitalize cursor-pointer">
+                  {time}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bio */}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700">Bio</label>
+          <Textarea
+            value={profileData.bio}
+            onChange={(e) => handleInputChange('bio', e.target.value)}
+            className="rounded-xl border-gray-200 focus:border-blue-500 h-24 resize-none"
+            placeholder="Tell other players about yourself..."
+          />
+        </div>
+
+        {/* Save Button */}
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:transform-none"
+        >
+          {saving ? "Saving..." : saved ? (
+            <span className="flex items-center justify-center space-x-2">
+              <Check className="w-5 h-5" />
+              <span>Saved!</span>
+            </span>
+          ) : "Save Profile"}
+        </Button>
+
+        {/* Logout Button */}
+        <Button
+          onClick={handleLogout}
+          variant="outline"
+          className="w-full border-red-200 text-red-600 hover:bg-red-50 py-4 rounded-xl font-semibold"
+        >
+          <LogOut className="w-5 h-5 mr-2" />
+          Sign Out
+        </Button>
+      </div>
+    </div>
+  );
+}
